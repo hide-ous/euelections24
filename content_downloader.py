@@ -13,46 +13,50 @@ from hashlib import sha256
 import multiprocessing
 
 NUM_PROCESSES = 10
-CHAR_LIMIT=100
+CHAR_LIMIT = 100
 
 observed_urls = collections.deque(maxlen=1000)
 observed_url_lock = multiprocessing.Lock()
+
+
 class NJSONFilter(DefaultFilter):
     allowed_extensions = '.jsonl', '.njson', 'ndjson'
 
     def __call__(self, change: Change, path: str) -> bool:
         return (
-            super().__call__(change, path) and
-            path.endswith(self.allowed_extensions)
+                super().__call__(change, path) and
+                path.endswith(self.allowed_extensions)
         )
+
 
 def to_fname(url, char_limit=CHAR_LIMIT):
     path = urlparse(url).path
     ext = os.path.splitext(path)[1]
     hash = sha256(url.encode()).hexdigest()[:char_limit]
-    return hash+ext
+    return hash + ext
+
+
 def download(url, fpath, sleep_retry=10, retries=4):
-        for i in range(retries):
-            try:
+    for i in range(retries):
+        try:
 
-                with requests.get(url, stream=True) as r:
-                    try:
-                        r.raise_for_status()
-                        pathlib.Path(os.path.dirname(fpath)).mkdir(parents=True, exist_ok=True)
+            with requests.get(url, stream=True) as r:
+                try:
+                    r.raise_for_status()
+                    pathlib.Path(os.path.dirname(fpath)).mkdir(parents=True, exist_ok=True)
 
-                        with open(fpath, 'wb+') as f:
-                            for chunk in r.iter_content(chunk_size=8192):
-                                f.write(chunk)
-                        break
-                    except Exception as e:
-                        print(f"could not download {url},", e)
-                        break
-            except http.client.IncompleteRead:
-                print(f'incomplete read for {url}, retrying after {sleep_retry} seconds (try {i}/{retries})')
-                time.sleep(sleep_retry)
-            except Exception as e:
-                print(f"could not download {url},", e)
-
+                    with open(fpath, 'wb+') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    break
+                except Exception as e:
+                    print(f"could not download {url},", e)
+                    break
+        except http.client.IncompleteRead:
+            print(f'incomplete read for {url}, retrying after {sleep_retry} seconds (try {i}/{retries})')
+            time.sleep(sleep_retry)
+        except Exception as e:
+            print(f"could not download {url},", e)
 
 
 def get_change_objects(fname, last_postitions):
@@ -66,13 +70,14 @@ def get_change_objects(fname, last_postitions):
                 yield media['url']
         last_postitions[fname] = f.tell()
 
+
 def worker_main(queue):
-    print(os.getpid(),"working")
+    print(os.getpid(), "working")
     global observed_urls, observed_url_lock
     while True:
-        url = queue.get(block=True) #block=True means make a blocking call to wait for items in queue
+        url = queue.get(block=True)  # block=True means make a blocking call to wait for items in queue
         if url is None:
-            print(os.getpid(),"received stop signal")
+            print(os.getpid(), "received stop signal")
             break
 
         mine = False
@@ -80,7 +85,7 @@ def worker_main(queue):
             if url not in observed_urls:
                 observed_urls.appendleft(url)
                 # observed_urls.add(url)
-                mine =True
+                mine = True
         if mine:
             media_fpath = os.path.join('media', to_fname(url))
             if not os.path.exists(media_fpath):
@@ -93,7 +98,7 @@ if __name__ == '__main__':
     last_postitions = dict()
     the_queue = multiprocessing.Queue()
     the_pool = multiprocessing.Pool(NUM_PROCESSES, worker_main, (the_queue,))
-    in_fnames= ['iglog.njson', 'fblog.njson']
+    in_fnames = ['iglog.njson', 'fblog.njson']
     for fname in in_fnames:
         for url in get_change_objects(fname, last_postitions):
             if url is not None:
@@ -107,7 +112,6 @@ if __name__ == '__main__':
                     print(f'adding {url} to the queue')
                     the_queue.put(url)
 
-
     for i in range(NUM_PROCESSES):
         the_queue.put(None)
     # prevent adding anything more to the queue and wait for queue to empty
@@ -117,4 +121,3 @@ if __name__ == '__main__':
     # prevent adding anything more to the process pool and wait for all processes to finish
     the_pool.close()
     the_pool.join()
-
