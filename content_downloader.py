@@ -12,10 +12,13 @@ import pathlib
 from hashlib import sha256
 import multiprocessing
 
+DEBOUNCE_QUEUE_LENGTH = 1000
+
 NUM_PROCESSES = 10
 CHAR_LIMIT = 100
 
-observed_urls = collections.deque(maxlen=1000)
+observed_urls = collections.deque(maxlen=DEBOUNCE_QUEUE_LENGTH)
+
 observed_url_lock = multiprocessing.Lock()
 
 
@@ -80,11 +83,10 @@ def worker_main(queue):
             print(os.getpid(), "received stop signal")
             break
 
-        mine = False
+        mine = False # the url is new and this worker will handle it
         with observed_url_lock:
             if url not in observed_urls:
                 observed_urls.appendleft(url)
-                # observed_urls.add(url)
                 mine = True
         if mine:
             media_fpath = os.path.join('media', to_fname(url))
