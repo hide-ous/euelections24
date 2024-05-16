@@ -95,8 +95,7 @@ def worker_main(queue):
                 download(url, media_fpath)
 
 
-if __name__ == '__main__':
-
+def main():
     last_postitions = dict()
     the_queue = multiprocessing.Queue()
     the_pool = multiprocessing.Pool(NUM_PROCESSES, worker_main, (the_queue,))
@@ -105,7 +104,6 @@ if __name__ == '__main__':
         for url in get_change_objects(fname, last_postitions):
             if url is not None:
                 the_queue.put(url)
-
     for changes in watch('.', recursive=False, watch_filter=NJSONFilter(), raise_interrupt=False):
         print(changes)
         for change in changes:
@@ -113,13 +111,16 @@ if __name__ == '__main__':
                 if url is not None:
                     print(f'adding {url} to the queue')
                     the_queue.put(url)
-
     for i in range(NUM_PROCESSES):
         the_queue.put(None)
     # prevent adding anything more to the queue and wait for queue to empty
     the_queue.close()
     the_queue.join_thread()
-
     # prevent adding anything more to the process pool and wait for all processes to finish
     the_pool.close()
     the_pool.join()
+
+
+if __name__ == '__main__':
+
+    main()
