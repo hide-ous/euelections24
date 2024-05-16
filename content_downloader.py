@@ -83,7 +83,7 @@ def worker_main(queue):
             print(os.getpid(), "received stop signal")
             break
 
-        mine = False # the url is new and this worker will handle it
+        mine = False  # the url is new and this worker will handle it
         with observed_url_lock:
             if url not in observed_urls:
                 observed_urls.appendleft(url)
@@ -95,12 +95,11 @@ def worker_main(queue):
                 download(url, media_fpath)
 
 
-def main():
+def main(seed_fnames):
     last_postitions = dict()
     the_queue = multiprocessing.Queue()
     the_pool = multiprocessing.Pool(NUM_PROCESSES, worker_main, (the_queue,))
-    in_fnames = ['iglog.njson', 'fblog.njson']
-    for fname in in_fnames:
+    for fname in seed_fnames:
         for url in get_change_objects(fname, last_postitions):
             if url is not None:
                 the_queue.put(url)
@@ -122,5 +121,4 @@ def main():
 
 
 if __name__ == '__main__':
-
-    main()
+    main(seed_fnames=['iglog.njson', 'fblog.njson'])
