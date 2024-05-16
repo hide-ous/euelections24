@@ -1,0 +1,4 @@
+requests~=2.31.0
+watchfiles~=0.21.0
+schedule~=1.2.1
+pytangle~=0.0.2
