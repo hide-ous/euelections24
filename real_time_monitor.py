@@ -2,12 +2,15 @@
 
 import json
 import logging
+import os
 import time
 from datetime import datetime
 import schedule
 import optparse
 from pytangle.api import API, CONFIG_FILE_LOCATIONS
 import collections
+
+TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 logger = logging.getLogger()
 
@@ -27,7 +30,21 @@ class PyTangleScraper(object):
         self.quiet = quiet
         self.store_path = store_path
 
-        self.timestamp_last_post = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')  # current time
+        self.timestamp_last_post = datetime.utcnow().strftime(TIMESTAMP_FORMAT)  # current time
+        if os.path.exists(self.store_path):
+            with open(self.store_path, 'r') as f:
+                l = ""
+                for l in f:
+                    pass
+                post_updated = json.loads(l)['updated']
+                if type(post_updated) == list:  # unpack items if they are nested in a list
+                    post_updated = post_updated[0]
+                try:
+                    datetime.strptime(post_updated, TIMESTAMP_FORMAT)
+                    self.timestamp_last_post = post_updated
+                except:
+                    print(f'could not parse timestamp {post_updated} from {self.store_path}')
+                    pass
         self.api = API(token=self.api_key, config_file_locations=self.config)
         self.counter = 0
         if not self.quiet:
@@ -40,7 +57,7 @@ class PyTangleScraper(object):
 
             for post in self.api.posts(listIds=self.lists,
                                        sortBy='date', count=-1, startDate=self.timestamp_last_post,
-                                       endDate=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')):
+                                       endDate=datetime.utcnow().strftime(TIMESTAMP_FORMAT)):
 
                 post_updated = post['updated']
                 if type(post_updated) == list:  # unpack items if they are nested in a list
@@ -55,7 +72,7 @@ class PyTangleScraper(object):
         self.counter += counter
         if not self.quiet:
             logger.debug("returned {} posts ({} up to now)".format(counter, self.counter))
-            logger.debug("done at " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            logger.debug("done at " + datetime.now().strftime(TIMESTAMP_FORMAT))
 
     def run(self):
         job = schedule.every(self.every).__getattribute__(self.timeunit)
