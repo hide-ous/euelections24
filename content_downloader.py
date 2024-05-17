@@ -3,8 +3,6 @@ import http
 import json
 import os
 import time
-import collections
-
 from watchfiles import watch, DefaultFilter, Change
 import requests
 from urllib.parse import urlparse
@@ -13,13 +11,12 @@ from hashlib import sha256
 import multiprocessing
 
 DEBOUNCE_QUEUE_LENGTH = 1000
-
 NUM_PROCESSES = 10
 CHAR_LIMIT = 100
 
-observed_urls = collections.deque(maxlen=DEBOUNCE_QUEUE_LENGTH)
-
-observed_url_lock = multiprocessing.Lock()
+manager = multiprocessing.Manager()
+observed_urls = manager.list()  # List to keep track of the order of URLs
+observed_urls_set = manager.dict()  # Dictionary to check for observed URLs
 
 
 class NJSONFilter(DefaultFilter):
@@ -42,7 +39,6 @@ def to_fname(url, char_limit=CHAR_LIMIT):
 def download(url, fpath, sleep_retry=10, retries=4):
     for i in range(retries):
         try:
-
             with requests.get(url, stream=True) as r:
                 try:
                     r.raise_for_status()
@@ -62,21 +58,20 @@ def download(url, fpath, sleep_retry=10, retries=4):
             print(f"could not download {url},", e)
 
 
-def get_change_objects(fname, last_postitions):
-    last_postition = last_postitions.get(fname, 0)
-    print(f"last postition: {last_postition}")
+def get_change_objects(fname, last_positions):
+    last_position = last_positions.get(fname, 0)
+    print(f"last position: {last_position}")
     with open(fname, encoding='utf-8') as f:
-        f.seek(last_postition)
+        f.seek(last_position)
         while l := f.readline():
             obj = json.loads(l)
             for media in obj.get('media', []):
                 yield media['url']
-        last_postitions[fname] = f.tell()
+        last_positions[fname] = f.tell()
 
 
-def worker_main(queue):
+def worker_main(queue, observed_urls, observed_urls_set):
     print(os.getpid(), "working")
-    global observed_urls, observed_url_lock
     while True:
         url = queue.get(block=True)  # block=True means make a blocking call to wait for items in queue
         if url is None:
@@ -84,30 +79,35 @@ def worker_main(queue):
             break
 
         mine = False  # the url is new and this worker will handle it
-        with observed_url_lock:
-            if url not in observed_urls:
-                observed_urls.appendleft(url)
-                mine = True
+        if url not in observed_urls_set:
+            observed_urls_set[url] = True
+            observed_urls.append(url)
+            mine = True
+            if len(observed_urls) > DEBOUNCE_QUEUE_LENGTH:
+                oldest_url = observed_urls.pop(0)
+                del observed_urls_set[oldest_url]
+
         if mine:
             fname = to_fname(url)
             media_fpath = os.path.join('media', fname[:2], fname[2:4], fname)
             if not os.path.exists(media_fpath):
-                print(f'Downloading {url} to {media_fpath}')
+                print(f'{os.getpid()} Downloading {url} to {media_fpath}')
                 download(url, media_fpath)
 
 
 def main(seed_fnames):
-    last_postitions = dict()
+    last_positions = dict()
     the_queue = multiprocessing.Queue()
-    the_pool = multiprocessing.Pool(NUM_PROCESSES, worker_main, (the_queue,))
+
+    the_pool = multiprocessing.Pool(NUM_PROCESSES, worker_main, (the_queue, observed_urls, observed_urls_set))
     for fname in seed_fnames:
-        for url in get_change_objects(fname, last_postitions):
+        for url in get_change_objects(fname, last_positions):
             if url is not None:
                 the_queue.put(url)
     for changes in watch('.', recursive=False, watch_filter=NJSONFilter(), raise_interrupt=False):
         print(changes)
         for change in changes:
-            for url in get_change_objects(change[1], last_postitions):
+            for url in get_change_objects(change[1], last_positions):
                 if url is not None:
                     print(f'adding {url} to the queue')
                     the_queue.put(url)
