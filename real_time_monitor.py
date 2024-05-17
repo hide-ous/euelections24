@@ -17,7 +17,6 @@ logger = logging.getLogger()
 
 
 class PyTangleScraper(object):
-
     observed_posts = collections.deque(maxlen=DEBOUNCE_QUEUE_LENGTH)
 
     def __init__(self, api_key, config, lists, store_path, quiet, every, timeunit, at):
