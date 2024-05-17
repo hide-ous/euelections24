@@ -11,12 +11,12 @@ from pytangle.api import API, CONFIG_FILE_LOCATIONS
 import collections
 
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
+DEBOUNCE_QUEUE_LENGTH = 10000
 
 logger = logging.getLogger()
 
 
 class PyTangleScraper(object):
-    DEBOUNCE_QUEUE_LENGTH = 10000
 
     observed_posts = collections.deque(maxlen=DEBOUNCE_QUEUE_LENGTH)
 
