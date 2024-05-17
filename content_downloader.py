@@ -89,7 +89,8 @@ def worker_main(queue):
                 observed_urls.appendleft(url)
                 mine = True
         if mine:
-            media_fpath = os.path.join('media', to_fname(url))
+            fname = to_fname(url)
+            media_fpath = os.path.join('media', fname[:2], fname[2:4], fname)
             if not os.path.exists(media_fpath):
                 print(f'Downloading {url} to {media_fpath}')
                 download(url, media_fpath)
