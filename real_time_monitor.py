@@ -7,11 +7,16 @@ from datetime import datetime
 import schedule
 import optparse
 from pytangle.api import API, CONFIG_FILE_LOCATIONS
+import collections
 
 logger = logging.getLogger()
 
 
 class PyTangleScraper(object):
+    DEBOUNCE_QUEUE_LENGTH = 10000
+
+    observed_posts = collections.deque(maxlen=DEBOUNCE_QUEUE_LENGTH)
+
     def __init__(self, api_key, config, lists, store_path, quiet, every, timeunit, at):
         self.config = config
         self.api_key = api_key
@@ -36,11 +41,15 @@ class PyTangleScraper(object):
             for post in self.api.posts(listIds=self.lists,
                                        sortBy='date', count=-1, startDate=self.timestamp_last_post,
                                        endDate=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')):
-                out_file.write(json.dumps(post) + '\n')
-                post_date = post['date']
-                if type(post_date) == list: #unpack items if they are nested in a list
-                    post_date = post_date[0]
-                most_recent_timestamp = max(most_recent_timestamp, post_date)
+
+                post_updated = post['updated']
+                if type(post_updated) == list:  # unpack items if they are nested in a list
+                    post_updated = post_updated[0]
+                if post["id"] + post_updated not in self.observed_posts:
+                    out_file.write(json.dumps(post) + '\n')
+                    self.observed_posts.appendleft(post["id"] + post_updated)
+
+                most_recent_timestamp = max(most_recent_timestamp, post_updated)
                 counter += 1
         self.timestamp_last_post = most_recent_timestamp
         self.counter += counter
