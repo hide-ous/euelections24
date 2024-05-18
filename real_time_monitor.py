@@ -29,6 +29,11 @@ class PyTangleScraper(object):
         self.quiet = quiet
         self.store_path = store_path
 
+        self.api = API(token=self.api_key, config_file_locations=self.config)
+        self.counter = 0
+        if not self.quiet:
+            logger.setLevel(logging.DEBUG)
+
         self.timestamp_last_post = datetime.utcnow().strftime(TIMESTAMP_FORMAT)  # current time
         if os.path.exists(self.store_path):
             with open(self.store_path, 'r') as f:
@@ -41,13 +46,10 @@ class PyTangleScraper(object):
                 try:
                     datetime.strptime(post_updated, TIMESTAMP_FORMAT)
                     self.timestamp_last_post = post_updated
+                    logger.info(f'resuming from {self.timestamp_last_post}')
                 except:
-                    print(f'could not parse timestamp {post_updated} from {self.store_path}')
+                    logger.info(f'could not parse timestamp {post_updated} from {self.store_path}')
                     pass
-        self.api = API(token=self.api_key, config_file_locations=self.config)
-        self.counter = 0
-        if not self.quiet:
-            logger.setLevel(logging.DEBUG)
 
     def scrape_once(self):
         most_recent_timestamp = self.timestamp_last_post
@@ -63,6 +65,7 @@ class PyTangleScraper(object):
                     post_updated = post_updated[0]
                 if post["id"] + post_updated not in self.observed_posts:
                     out_file.write(json.dumps(post) + '\n')
+                    out_file.flush()
                     self.observed_posts.appendleft(post["id"] + post_updated)
 
                 most_recent_timestamp = max(most_recent_timestamp, post_updated)

@@ -101,6 +101,7 @@ def main(seed_fnames):
 
     the_pool = multiprocessing.Pool(NUM_PROCESSES, worker_main, (the_queue, observed_urls, observed_urls_set))
     for fname in seed_fnames:
+        if not os.path.exists(fname): continue
         for url in get_change_objects(fname, last_positions):
             if url is not None:
                 the_queue.put(url)
