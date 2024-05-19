@@ -21,7 +21,7 @@ observed_urls_set = manager.dict()  # Dictionary to check for observed URLs
 
 logging.basicConfig()
 
-logger = logging.getLogger(namem='content_downloader')
+logger = logging.getLogger(name='content_downloader')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch = logging.StreamHandler()
 ch.setFormatter(formatter)
@@ -81,11 +81,11 @@ def get_change_objects(fname, last_positions):
 
 
 def worker_main(queue, observed_urls, observed_urls_set):
-    logger.debug(os.getpid(), "working")
+    logger.debug(f"{os.getpid()} working")
     while True:
         url = queue.get(block=True)  # block=True means make a blocking call to wait for items in queue
         if url is None:
-            logger.debug(os.getpid(), "received stop signal")
+            logger.debug(f"{os.getpid()} received stop signal")
             break
 
         mine = False  # the url is new and this worker will handle it
@@ -116,7 +116,7 @@ def main(seed_fnames):
             if url is not None:
                 the_queue.put(url)
     for changes in watch('.', recursive=False, watch_filter=NJSONFilter(), raise_interrupt=False):
-        logger.debug(changes)
+        logger.debug(str(changes))
         for change in changes:
             for url in get_change_objects(change[1], last_positions):
                 if url is not None:
