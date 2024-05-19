@@ -13,7 +13,7 @@ import collections
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 DEBOUNCE_QUEUE_LENGTH = 10000
 
-logging.basicConfig()
+# logging.basicConfig()
 
 logger = logging.getLogger(name='PyTangleScraper')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -72,6 +72,7 @@ class PyTangleScraper(object):
                 if type(post_updated) == list:  # unpack items if they are nested in a list
                     post_updated = post_updated[0]
                 if post["id"] + post_updated not in self.observed_posts:
+                    post['scraped'] = datetime.utcnow().strftime(TIMESTAMP_FORMAT)
                     out_file.write(json.dumps(post) + '\n')
                     out_file.flush()
                     self.observed_posts.appendleft(post["id"] + post_updated)
