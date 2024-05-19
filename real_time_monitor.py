@@ -13,8 +13,13 @@ import collections
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 DEBOUNCE_QUEUE_LENGTH = 10000
 
-logger = logging.getLogger()
+logging.basicConfig()
 
+logger = logging.getLogger(namem='PyTangleScraper')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch = logging.StreamHandler()
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 class PyTangleScraper(object):
     observed_posts = collections.deque(maxlen=DEBOUNCE_QUEUE_LENGTH)
@@ -33,8 +38,11 @@ class PyTangleScraper(object):
         self.counter = 0
         if not self.quiet:
             logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.ERROR)
 
         self.timestamp_last_post = datetime.utcnow().strftime(TIMESTAMP_FORMAT)  # current time
+        logger.info(f'attempting resume from {self.store_path}')
         if os.path.exists(self.store_path):
             with open(self.store_path, 'r') as f:
                 l = ""

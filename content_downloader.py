@@ -1,6 +1,7 @@
 import collections
 import http
 import json
+import logging
 import os
 import time
 from watchfiles import watch, DefaultFilter, Change
@@ -17,6 +18,15 @@ CHAR_LIMIT = 100
 manager = multiprocessing.Manager()
 observed_urls = manager.list()  # List to keep track of the order of URLs
 observed_urls_set = manager.dict()  # Dictionary to check for observed URLs
+
+logging.basicConfig()
+
+logger = logging.getLogger(namem='content_downloader')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch = logging.StreamHandler()
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+logger.setLevel(logging.DEBUG)
 
 
 class NJSONFilter(DefaultFilter):
@@ -49,18 +59,18 @@ def download(url, fpath, sleep_retry=10, retries=4):
                             f.write(chunk)
                     break
                 except Exception as e:
-                    print(f"could not download {url},", e)
+                    logger.debug(f"could not download {url},", e)
                     break
         except http.client.IncompleteRead:
-            print(f'incomplete read for {url}, retrying after {sleep_retry} seconds (try {i}/{retries})')
+            logger.debug(f'incomplete read for {url}, retrying after {sleep_retry} seconds (try {i}/{retries})')
             time.sleep(sleep_retry)
         except Exception as e:
-            print(f"could not download {url},", e)
+            logger.debug(f"could not download {url},", e)
 
 
 def get_change_objects(fname, last_positions):
     last_position = last_positions.get(fname, 0)
-    print(f"last position: {last_position}")
+    logger.debug(f"last position: {last_position}")
     with open(fname, encoding='utf-8') as f:
         f.seek(last_position)
         while l := f.readline():
@@ -71,11 +81,11 @@ def get_change_objects(fname, last_positions):
 
 
 def worker_main(queue, observed_urls, observed_urls_set):
-    print(os.getpid(), "working")
+    logger.debug(os.getpid(), "working")
     while True:
         url = queue.get(block=True)  # block=True means make a blocking call to wait for items in queue
         if url is None:
-            print(os.getpid(), "received stop signal")
+            logger.debug(os.getpid(), "received stop signal")
             break
 
         mine = False  # the url is new and this worker will handle it
@@ -91,7 +101,7 @@ def worker_main(queue, observed_urls, observed_urls_set):
             fname = to_fname(url)
             media_fpath = os.path.join('media', fname[:2], fname[2:4], fname)
             if not os.path.exists(media_fpath):
-                print(f'{os.getpid()} Downloading {url} to {media_fpath}')
+                logger.debug(f'{os.getpid()} Downloading {url} to {media_fpath}')
                 download(url, media_fpath)
 
 
@@ -106,11 +116,11 @@ def main(seed_fnames):
             if url is not None:
                 the_queue.put(url)
     for changes in watch('.', recursive=False, watch_filter=NJSONFilter(), raise_interrupt=False):
-        print(changes)
+        logger.debug(changes)
         for change in changes:
             for url in get_change_objects(change[1], last_positions):
                 if url is not None:
-                    print(f'adding {url} to the queue')
+                    logger.debug(f'adding {url} to the queue')
                     the_queue.put(url)
     for i in range(NUM_PROCESSES):
         the_queue.put(None)
