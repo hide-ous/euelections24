@@ -64,21 +64,25 @@ class PyTangleScraper(object):
         counter = 0
         with open(self.store_path, 'a+') as out_file:
 
-            for post in self.api.posts(listIds=self.lists,
-                                       sortBy='date', count=-1, startDate=self.timestamp_last_post,
-                                       endDate=datetime.utcnow().strftime(TIMESTAMP_FORMAT)):
+            try:
+                for post in self.api.posts(listIds=self.lists,
+                                           sortBy='date', count=-1, startDate=self.timestamp_last_post,
+                                           endDate=datetime.utcnow().strftime(TIMESTAMP_FORMAT)):
 
-                post_updated = post['updated']
-                if type(post_updated) == list:  # unpack items if they are nested in a list
-                    post_updated = post_updated[0]
-                if post["id"] + post_updated not in self.observed_posts:
-                    post['scraped'] = datetime.utcnow().strftime(TIMESTAMP_FORMAT)
-                    out_file.write(json.dumps(post) + '\n')
-                    out_file.flush()
-                    self.observed_posts.appendleft(post["id"] + post_updated)
+                    post_updated = post['updated']
+                    if type(post_updated) == list:  # unpack items if they are nested in a list
+                        post_updated = post_updated[0]
+                    if post["id"] + post_updated not in self.observed_posts:
+                        post['scraped'] = datetime.utcnow().strftime(TIMESTAMP_FORMAT)
+                        out_file.write(json.dumps(post) + '\n')
+                        out_file.flush()
+                        self.observed_posts.appendleft(post["id"] + post_updated)
 
-                most_recent_timestamp = max(most_recent_timestamp, post_updated)
-                counter += 1
+                    most_recent_timestamp = max(most_recent_timestamp, post_updated)
+                    counter += 1
+            except Exception as e:
+                logger.exception(repr(e))
+
         self.timestamp_last_post = most_recent_timestamp
         self.counter += counter
         if not self.quiet:
