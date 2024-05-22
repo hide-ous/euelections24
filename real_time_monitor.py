@@ -62,7 +62,7 @@ class PyTangleScraper(object):
     def scrape_once(self):
         most_recent_timestamp = self.timestamp_last_post
         counter = 0
-        with open(self.store_path, 'a+') as out_file:
+        with open(self.store_path, 'a+', encoding='utf8') as out_file:
 
             try:
                 for post in self.api.posts(listIds=self.lists,
