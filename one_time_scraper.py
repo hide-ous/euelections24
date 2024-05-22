@@ -73,7 +73,6 @@ def run_once():
                                   ):
 
                 post['scraped'] = datetime.utcnow().strftime(TIMESTAMP_FORMAT)
-                out_file.write(json.dumps(post) + '\n')
                 for media in post.get('media', []):
                     url = media['url']
                     fname = to_fname(url)
@@ -82,6 +81,8 @@ def run_once():
                     if not os.path.exists(media_fpath):
                         logger.debug(f'{os.getpid()} Downloading {url} to {media_fpath}')
                         download(url, media_fpath)
+                    media['file_path']=media_fpath
+                out_file.write(json.dumps(post) + '\n')
         except Exception as e:
             logger.exception(repr(e))
 
