@@ -44,7 +44,7 @@ def main():
 
     parser.add_option("-c", "--config", dest="config_path", default=CONFIG_FILE_LOCATIONS,
                       help="pytangle config file location")
-    parser.add_option("-d", "--days", dest="days", default=7,
+    parser.add_option("-d", "--days", dest="days", default=7, type=int,
                       help="how many days in the past to scrape")
     (options, args) = parser.parse_args()
 
